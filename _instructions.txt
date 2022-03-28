@@ -1,6 +1,6 @@
 0) On windows install c++ build tools:  
 https://visualstudio.microsoft.com/downloads/?q=build+tools
 1) Create conda env from environment.yml
-conda create env create
+conda env create
 3) Run setup
 python setup.py install

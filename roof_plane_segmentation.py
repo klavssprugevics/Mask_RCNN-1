@@ -24,8 +24,8 @@ sys.path.append(ROOT_DIR)
 
 # Hide deprecation warnings
 import warnings
-import tensorflow as tf
 warnings.filterwarnings('ignore')
+import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
