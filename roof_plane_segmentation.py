@@ -43,20 +43,20 @@ class RoofConfig(Config):
 
     NAME = 'roof'
     NUM_CLASSES = 1 + 1  # background + buildings
-    IMAGE_MIN_DIM = 1024
-    IMAGE_MAX_DIM = 1024
+    IMAGE_MIN_DIM = 512
+    IMAGE_MAX_DIM = 512
     IMAGE_RESIZE_MODE = 'pad64'
     
     # Number of color channels per image. RGB = 3, grayscale = 1, RGB-D = 4
     # Changing this requires other changes in the code. See the WIKI for more
     # details: https://github.com/matterport/Mask_RCNN/wiki
-    IMAGE_CHANNEL_COUNT = 3
+    IMAGE_CHANNEL_COUNT = 4
 
-    IMAGESHAPE = np.array([1024,1024,3])
-    MEAN_PIXEL = np.array([123.7, 116.8, 103.9])
+    IMAGESHAPE = np.array([512,512,IMAGE_CHANNEL_COUNT])
+    MEAN_PIXEL = np.array([119.98980735,  96.20931454, 104.49473794,  12.2824936])
 
     GPU_COUNT = 1
-    IMAGES_PER_GPU = 2
+    IMAGES_PER_GPU = 1
 
     BACKBONE = "resnet50"
 
@@ -64,8 +64,8 @@ class RoofConfig(Config):
     # are based on a Resnet101 backbone.
     BACKBONE_STRIDES = [2,4, 8, 16, 32]
 
-    STEPS_PER_EPOCH = 1000 // IMAGES_PER_GPU
-    VALIDATION_STEPS = 50
+    STEPS_PER_EPOCH = 100 // IMAGES_PER_GPU
+    VALIDATION_STEPS = 5
 
     # Length of square anchor side in pixels
     RPN_ANCHOR_SCALES = (8,16,32,64,128)
@@ -156,9 +156,16 @@ class RoofInferenceConfig(RoofConfig):
     IMAGES_PER_GPU = 1
     # Don't resize imager for inferencing
     IMAGE_RESIZE_MODE = 'pad64'
+    IMAGE_MIN_DIM = 512
+    IMAGE_MAX_DIM = 512
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more propsals.
     RPN_NMS_THRESHOLD = 0.5
+
+    IMAGE_CHANNEL_COUNT = 4
+
+    IMAGESHAPE = np.array([512, 512, IMAGE_CHANNEL_COUNT])
+    MEAN_PIXEL = np.array([119.98980735,  96.20931454, 104.49473794,  12.2824936])
 
 
 ############################################################
@@ -180,7 +187,7 @@ class RoofDataset(utils.Dataset):
             self.add_image(
                 'roof',
                 image_id=img,
-                width=1024, height=1024,
+                width=512, height=512,
                 path=os.path.join(dataset_dir, img))
 
 
@@ -323,21 +330,27 @@ def train(model):
     print("Train network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=20,
+                epochs=10,
                 augmentation=augmentation,
                 layers='heads')
+
+    # model.train(dataset_train, dataset_val,
+    #             learning_rate=config.LEARNING_RATE,
+    #             epochs=3 + 1,
+    #             augmentation=augmentation,
+    #             layers='conv1')
 
     print("Fine tune Resnet stage 4 and up")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs= 20 + 40,
+                epochs= 10 + 10,
                 augmentation=augmentation,
                 layers='4+')
 
     print("Train all layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=20 + 40 + 20,
+                epochs=10 + 10 + 10,
                 augmentation=augmentation,
                 layers='all')
 
@@ -382,9 +395,10 @@ def segment_region(model, data_path, output_path):
 
         # Generate image with colored segments
         image_arr = np.copy(original_image)
+        image_arr = image_arr[:, :, :3]
         new_image = Image.fromarray(image_arr)
         
-        cmap = cm.get_cmap('winter', masks.shape[0])
+        cmap = cm.get_cmap('winter', masks.shape[2])
 
         for i in range(0, masks.shape[2]):
             image_arr[masks[:, :, i], 0] = np.clip(cmap(i)[0] + np.random.rand(1) * 255, 0, 255)
@@ -395,6 +409,7 @@ def segment_region(model, data_path, output_path):
         new_image.putalpha(255)
         mask_overlay.putalpha(128)
         new_image = Image.alpha_composite(new_image, mask_overlay)
+
         new_image.save(output_path + 'images/' + os.path.splitext(file)[0] + '.tif')
 
     
@@ -471,7 +486,7 @@ if __name__ == '__main__':
     if args.weights.lower() == 'coco':
         # Exclude the last layers because they require a matching
         # number of classes
-        model.load_weights(weights_path, by_name=True, exclude=[
+        model.load_weights(weights_path, by_name=True, exclude=['conv1',
             'mrcnn_class_logits', 'mrcnn_bbox_fc',
             'mrcnn_bbox', 'mrcnn_mask'])
     else:
@@ -482,5 +497,5 @@ if __name__ == '__main__':
         train(model)
     elif args.command == 'predict':
         # predict_single_image(model, './data/1024_cir/val/images/pilseta2_br_0-0.jpg')
-        # segment_region(model, './data/1024_cir/train/images/', './results/1024_cir/')
+        segment_region(model, './data/512_cir_ndsm/val/images/', './results/512_cir_ndsm/')
         pass
