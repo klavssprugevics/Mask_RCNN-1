@@ -1,0 +1,14 @@
+Train:
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/no_overlap/70_30/cir > 11_04_09_36.txt &
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/overlap/70_30/cir > 11_04_09_36.txt &
+
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/no_overlap/70_30/irr_ndsm > 11_04_09_36.txt &
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/overlap/70_30/irr_ndsm > 11_04_09_36.txt &
+
+
+Predict:
+python roof_plane_segmentation.py predict --weights=./models/roof20220411T0637/mask_rcnn_roof_0040.h5
+
+
+Kill background process:
+pkill python

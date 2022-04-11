@@ -19,7 +19,7 @@ from pycocotools import mask as maskUtils
 
 ROOT_DIR = os.path.abspath(".")
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, 'pre_trained_weights/mask_rcnn_coco.h5')
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
+DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'models')
 sys.path.append(ROOT_DIR)
 
 
@@ -43,32 +43,35 @@ class RoofConfig(Config):
 
     NAME = 'roof'
     NUM_CLASSES = 1 + 1  # background + buildings
-    IMAGE_MIN_DIM = 1024
-    IMAGE_MAX_DIM = 1024
-    IMAGE_RESIZE_MODE = 'pad64'
+    IMAGE_MIN_DIM = 512
+    IMAGE_MAX_DIM = 512
+    IMAGE_RESIZE_MODE = 'square'
     
     # Number of color channels per image. RGB = 3, grayscale = 1, RGB-D = 4
     # Changing this requires other changes in the code. See the WIKI for more
     # details: https://github.com/matterport/Mask_RCNN/wiki
     IMAGE_CHANNEL_COUNT = 3
 
-    IMAGESHAPE = np.array([1024,1024,3])
-    MEAN_PIXEL = np.array([123.7, 116.8, 103.9])
+    IMAGESHAPE = np.array([IMAGE_MAX_DIM,IMAGE_MAX_DIM,3])
+    MEAN_PIXEL = np.array([118.73564749, 95.87863248,  11.63718715])
+    # MEAN_PIXEL = np.array([118.73564749,  95.87863248, 104.48748958])
 
-    GPU_COUNT = 1
+    GPU_COUNT = 2
     IMAGES_PER_GPU = 2
 
-    BACKBONE = "resnet50"
+    BACKBONE = 'resnet50'
 
     # The strides of each layer of the FPN Pyramid. These values
     # are based on a Resnet101 backbone.
-    BACKBONE_STRIDES = [2,4, 8, 16, 32]
+    BACKBONE_STRIDES = [4,8, 16, 32, 64]
+    
 
-    STEPS_PER_EPOCH = 1000 // IMAGES_PER_GPU
-    VALIDATION_STEPS = 50
+    STEPS_PER_EPOCH = 200 // IMAGES_PER_GPU
+    VALIDATION_STEPS = 20
 
     # Length of square anchor side in pixels
-    RPN_ANCHOR_SCALES = (8,16,32,64,128)
+    RPN_ANCHOR_SCALES = (10, 20, 40, 80, 160)
+
 
     # Anchor stride
     # If 1 then anchors are created for each cell in the backbone feature map.
@@ -81,22 +84,25 @@ class RoofConfig(Config):
 
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more propsals.
-    RPN_NMS_THRESHOLD = 0.7
+    RPN_NMS_THRESHOLD = 0.9
+    # TODO Worth tweaking
+    # RPN_NMS_THRESHOLD = 0.5
 
     # How many anchors per image to use for RPN training
-    # RPN_TRAIN_ANCHORS_PER_IMAGE = 256
+    RPN_TRAIN_ANCHORS_PER_IMAGE = 256
+
 
     # If enabled, resizes instance masks to a smaller size to reduce
     # memory load. Recommended when using high-resolution images.
     USE_MINI_MASK = True
-    MINI_MASK_SHAPE = (128, 128)
+    MINI_MASK_SHAPE = (56, 56)
 
     # Number of ROIs per image to feed to classifier/mask heads
     # The Mask RCNN paper uses 512 but often the RPN doesn't generate
     # enough positive proposals to fill this and keep a positive:negative
     # ratio of 1:3. You can increase the number of proposals by adjusting
     # the RPN NMS threshold.
-    TRAIN_ROIS_PER_IMAGE = 200
+    TRAIN_ROIS_PER_IMAGE = 512
 
     # Percent of positive ROIs used to train classifier/mask heads
     ROI_POSITIVE_RATIO = .33
@@ -110,18 +116,18 @@ class RoofConfig(Config):
     MASK_SHAPE = [28, 28]
 
     # Maximum number of ground truth instances to use in one image
-    MAX_GT_INSTANCES = 200
+    MAX_GT_INSTANCES = 400
 
     # Bounding box refinement standard deviation for RPN and final detections.
     RPN_BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
     BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
 
     # Max number of final detections
-    DETECTION_MAX_INSTANCES = 200
+    DETECTION_MAX_INSTANCES = 400
 
     # Minimum probability value to accept a detected instance
     # ROIs below this threshold are skipped
-    DETECTION_MIN_CONFIDENCE = 0.0
+    DETECTION_MIN_CONFIDENCE = 0
 
     # Non-maximum suppression threshold for detection
     DETECTION_NMS_THRESHOLD = 0.5
@@ -130,35 +136,36 @@ class RoofConfig(Config):
     # The Mask RCNN paper uses lr=0.02, but on TensorFlow it causes
     # weights to explode. Likely due to differences in optimizer
     # implementation.
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.002
     LEARNING_MOMENTUM = 0.9
 
     # Weight decay regularization
-    WEIGHT_DECAY = 0.0001
+    WEIGHT_DECAY = 0.005
 
     # Loss weights for more precise optimization.
     # Can be used for R-CNN training setup.
-    # LOSS_WEIGHTS = {
-    #     "rpn_class_loss": 1.,
-    #     "rpn_bbox_loss": 1.,
-    #     "mrcnn_class_loss": 1.,
-    #     "mrcnn_bbox_loss": 1.,
-    #     "mrcnn_mask_loss": 1.
-    # }
+    LOSS_WEIGHTS = {
+         "rpn_class_loss": 1.,
+         "rpn_bbox_loss": 1,
+         "mrcnn_class_loss": 1.,
+         "mrcnn_bbox_loss": 1.,
+         "mrcnn_mask_loss": 1.
+    }
 
     # Gradient norm clipping
     GRADIENT_CLIP_NORM = 5.0
+
+
 
 
 class RoofInferenceConfig(RoofConfig):
     # Set batch size to 1 to run one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    # Don't resize imager for inferencing
-    IMAGE_RESIZE_MODE = 'pad64'
-    # Non-max suppression threshold to filter RPN proposals.
-    # You can increase this during training to generate more propsals.
-    RPN_NMS_THRESHOLD = 0.5
+
+    # TODO Worth tweaking - cleaner results with 0.5 thr
+    # RPN_NMS_THRESHOLD = 0.5
+
 
 
 ############################################################
@@ -180,7 +187,7 @@ class RoofDataset(utils.Dataset):
             self.add_image(
                 'roof',
                 image_id=img,
-                width=1024, height=1024,
+                width=512, height=512,
                 path=os.path.join(dataset_dir, img))
 
 
@@ -296,7 +303,7 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 ############################################################
 
 def train(model):
-    """Train the model."""
+
     # Training dataset.
     dataset_train = RoofDataset()
     dataset_train.load_roof(args.dataset, 'train')
@@ -307,61 +314,86 @@ def train(model):
     dataset_val.load_roof(args.dataset, 'val')
     dataset_val.prepare()
 
-    # Augmentation
-    augmentation = iaa.SomeOf((0, 2), [
+
+    # Light augmentations
+    light_augm = iaa.SomeOf((0, 4), [
         iaa.Fliplr(0.5),
         iaa.Flipud(0.5),
         iaa.OneOf([iaa.Affine(rotate=90),
-                   iaa.Affine(rotate=180),
-                   iaa.Affine(rotate=270)]),
-        # iaa.Multiply((0.8, 1.5)),
-        # iaa.GaussianBlur(sigma=(0.0, 5.0))
+                    iaa.Affine(rotate=180),
+                    iaa.Affine(rotate=270)]),
+        iaa.Affine(
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)})
     ])
 
-    shutil.copyfile('./roof_plane_segmentation.py', './logs/latest_config.py')
+    # Medium augmentations
+    medium_augm = iaa.SomeOf((0, 4), [
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.Crop(percent=(0, 0.1)),
+        iaa.OneOf([iaa.Affine(rotate=90),
+                    iaa.Affine(rotate=180),
+                    iaa.Affine(rotate=270)]),
+        iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)})
+    ])
 
-    print("Train network heads")
+    # Heavy augmentations
+    heavy_augm = iaa.Sequential([
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.Crop(percent=(0, 0.1)),
+        iaa.Sometimes(0.5, iaa.Crop(percent=(0, 0.1))),
+        iaa.Sometimes(0.5, iaa.OneOf([iaa.Affine(rotate=90),
+                   iaa.Affine(rotate=180),
+                   iaa.Affine(rotate=270)])),
+        iaa.Sometimes(0.5, iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-45, 45),
+        shear=(-4, 4)))
+    ], random_order=True)
+
+    shutil.copyfile('./roof_plane_segmentation.py', './models/latest_config.py')
+
+    ep1 = 25
+    ep2 = ep1 + 15
+    ep3 = ep2 + 40
+    ep4 = ep3 + 40
+
+    print('Training heads')
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=20,
-                augmentation=augmentation,
+                learning_rate=0.002,
+                epochs=ep1,
+                augmentation=light_augm,
                 layers='heads')
 
-    print("Fine tune Resnet stage 4 and up")
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs= 20 + 40,
-                augmentation=augmentation,
-                layers='4+')
+                learning_rate=0.0005,
+                epochs=ep2,
+                augmentation=light_augm,
+                layers='heads')
 
-    print("Train all layers")
-    model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=20 + 40 + 20,
-                augmentation=augmentation,
-                layers='all')
+    # print('Training resnet4+')
+    # model.train(dataset_train, dataset_val,
+    #             learning_rate=0.0003,
+    #             epochs=ep3,
+    #             augmentation=light_augm,
+    #             layers='4+')
+
+    # print('Training all layers')
+    # model.train(dataset_train, dataset_val,
+    #             learning_rate=0.0001,
+    #             epochs=ep4,
+    #             augmentation=light_augm,
+    #             layers='all')
 
 
 
 ############################################################
 #  Predict
 ############################################################
-
-def get_ax(rows=1, cols=1, size=8):
-    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
-    return ax
-
-
-def predict_single_image(model, image_path):
-    image = io.imread(image_path)
-    results = model.detect([image], verbose=1)
-
-    r = results[0]
-    visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
-                                ['BG', 'roof'], r['scores'], ax=get_ax())
-    plt.show()
-
-
 def segment_region(model, data_path, output_path):
 
     Path(output_path + 'images/').mkdir(parents=True, exist_ok=True)
@@ -427,20 +459,15 @@ if __name__ == '__main__':
         assert args.dataset, "Argument --dataset is required for training"
 
 
-    print("Weights: ", args.weights)
-    print("Dataset: ", args.dataset)
-    print("Logs: ", args.logs)
+    print('Weights: ', args.weights)
+    print('Dataset: ', args.dataset)
+    print('Logs: ', args.logs)
 
     # Configurations
     if args.command == 'train':
         config = RoofConfig()
     else:
-        class InferenceConfig(RoofConfig):
-            # Set batch size to 1 since we'll be running inference on
-            # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-            GPU_COUNT = 1
-            IMAGES_PER_GPU = 1
-        config = InferenceConfig()
+        config = RoofInferenceConfig()
     config.display()
 
     # Create model
@@ -481,6 +508,6 @@ if __name__ == '__main__':
     if args.command == 'train':
         train(model)
     elif args.command == 'predict':
-        # predict_single_image(model, './data/1024_cir/val/images/pilseta2_br_0-0.jpg')
-        # segment_region(model, './data/1024_cir/train/images/', './results/1024_cir/')
+        segment_region(model, './RoofPlaneDataset/test/ostgals/512_cir/images/', './results/ostgals/512_cir/')
+        segment_region(model, './RoofPlaneDataset/test/ostgals/512_irndsm/images/', './results/ostgals/512_irndsm/')
         pass
