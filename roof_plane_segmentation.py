@@ -394,6 +394,7 @@ def train(model):
 ############################################################
 #  Predict
 ############################################################
+
 def segment_region(model, data_path, output_path):
 
     Path(output_path + 'images/').mkdir(parents=True, exist_ok=True)
@@ -429,6 +430,39 @@ def segment_region(model, data_path, output_path):
         new_image = Image.alpha_composite(new_image, mask_overlay)
         new_image.save(output_path + 'images/' + os.path.splitext(file)[0] + '.tif')
 
+
+############################################################
+#  Evaluate
+############################################################
+
+def calculate_map(model, image_count=10):
+
+    dataset_val = RoofDataset()
+    dataset_val.load_roof(args.dataset, 'val')
+    dataset_val.prepare()
+    image_ids = np.random.choice(dataset_val.image_ids, image_count)
+
+    # VOC-Style mAP @ IoU=0.5
+    APs = []
+    for image_id in image_ids:
+        # Load image and ground truth data
+        image, image_meta, gt_class_id, gt_bbox, gt_mask =\
+            modellib.load_image_gt(dataset_val, RoofInferenceConfig,
+                                image_id, use_mini_mask=False)
+        molded_images = np.expand_dims(modellib.mold_image(image, RoofInferenceConfig), 0)
+
+        # Run object detection
+        results = model.detect([image], verbose=0)
+        r = results[0]
+
+        # Compute AP
+        AP, precisions, recalls, overlaps =\
+            utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
+                            r["rois"], r["class_ids"], r["scores"], r['masks'])
+        APs.append(AP)
+        
+    print("mAP: ", np.mean(APs))
+    return np.mean(APs)
     
 if __name__ == '__main__':
 
@@ -511,3 +545,5 @@ if __name__ == '__main__':
         segment_region(model, './RoofPlaneDataset/test/ostgals/512_cir/images/', './results/ostgals/512_cir/')
         segment_region(model, './RoofPlaneDataset/test/ostgals/512_irndsm/images/', './results/ostgals/512_irndsm/')
         pass
+    elif args.command == 'eval':
+        calculate_map(model, image_count=10)
