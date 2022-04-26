@@ -1,18 +1,43 @@
 Train:
-nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/no_overlap/70_30/cir > 11_04_09_36.txt &
-nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/overlap/70_30/cir > 11_04_09_36.txt &
 
-nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/no_overlap/70_30/irr_ndsm > 11_04_09_36.txt &
-nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset/overlap/70_30/irr_ndsm > 11_04_09_36.txt &
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset2/no_overlap/80_20/irr_ndsm > 15_04_15_07.txt &
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset2/overlap/80_20/irr_ndsm > 16_04_15_00.txt &
+
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset2/no_overlap/90_10/cir > 21_04_20_12.txt &
+nohup python -u roof_plane_segmentation.py train --weights=coco --dataset=./RoofPlaneDataset2/overlap/90_10/cir > 22_04_14_50.txt &
+
+nohup python -u roof_plane_segmentation_4dim.py train --weights=coco --dataset=./RoofPlaneDataset2/no_overlap/90_10/cir_ndsm > 20_04_15_08.txt &
+nohup python -u roof_plane_segmentation_4dim.py train --weights=coco --dataset=./RoofPlaneDataset2/overlap/90_10/cir_ndsm > 21_04_08_34.txt &
+
+
+Continue train:
+nohup python -u roof_plane_segmentation.py train --weights=./models_new/roof20220422T0924/mask_rcnn_roof_0120.h5 --dataset=./RoofPlaneDataset2/overlap/80_20/cir > 25_04_15_02.txt & 
 
 
 Predict:
-python roof_plane_segmentation.py predict --weights=./models/roof20220411T0637/mask_rcnn_roof_0040.h5
+python roof_plane_segmentation.py predict --weights=./models_new/roof20220419T0601/mask_rcnn_roof_0115.h5
+python roof_plane_segmentation.py predict --weights=./models_new/roof20220422T1151/mask_rcnn_roof_0120.h5
 
+
+python roof_plane_segmentation_4dim.py predict --weights=./models_new/roof20220421T0534/mask_rcnn_roof_0120.h5
 
 Evaluate:
-python roof_plane_segmentation.py eval --weights=./models/roof20220411T0637/mask_rcnn_roof_0040.h5 --dataset=./RoofPlaneDataset/no_overlap/70_30/cir
-
+python roof_plane_segmentation.py eval --weights=./models_new/roof20220416T1609/mask_rcnn_roof_0101.h5 --dataset=./RoofPlaneDataset2/test/ostgals/irr_ndsm
+python roof_plane_segmentation.py eval --weights=./models_new/roof20220422T1151/mask_rcnn_roof_0120.h5 --dataset=./RoofPlaneDataset2/test/ostgals/cir
+python roof_plane_segmentation_4dim.py eval --weights=./models_new/roof20220421T0534/mask_rcnn_roof_0120.h5 --dataset=./RoofPlaneDataset2/test/ostgals/cir_ndsm
 
 Kill background process:
 pkill python
+
+Evaluate:
+python roof_plane_segmentation.py eval --weights=./models_new/roof20220416T1609/mask_rcnn_roof_0160.h5 --dataset=./RoofPlaneDataset2/large_test/irr_ndsm
+python roof_plane_segmentation.py eval --weights=./models_new/roof20220416T1609/mask_rcnn_roof_0160.h5 --dataset=./RoofPlaneDataset2/test/ostgals/irr_ndsm
+python roof_plane_segmentation.py predict --weights=./models_new/roof20220416T1609/mask_rcnn_roof_0160.h5 --resultout ./results/roof20220416T1609/irr_ndsm_160/
+
+segment_region(model, './RoofPlaneDataset2/test/test/ostgals/irr_ndsm/val/images/', './results/roof20220413T1245/irr_ndsm/')
+
+
+
+
+python roof_plane_segmentation.py eval --weights=./models_new/roof20220422T1151/mask_rcnn_roof_0120.h5 --dataset=./RoofPlaneDataset2/test/ostgals/cir
+python roof_plane_segmentation_4dim.py eval --weights=./models_new/roof20220421T0534/mask_rcnn_roof_0120.h5 --dataset=./RoofPlaneDataset2/test/ostgals/cir_ndsm

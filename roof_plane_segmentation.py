@@ -19,7 +19,7 @@ from pycocotools import mask as maskUtils
 
 ROOT_DIR = os.path.abspath(".")
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, 'pre_trained_weights/mask_rcnn_coco.h5')
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'models')
+DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'models_new')
 sys.path.append(ROOT_DIR)
 
 
@@ -53,13 +53,20 @@ class RoofConfig(Config):
     IMAGE_CHANNEL_COUNT = 3
 
     IMAGESHAPE = np.array([IMAGE_MAX_DIM,IMAGE_MAX_DIM,3])
-    MEAN_PIXEL = np.array([118.73564749, 95.87863248,  11.63718715])
-    # MEAN_PIXEL = np.array([118.73564749,  95.87863248, 104.48748958])
+
+    # CIR
+    MEAN_PIXEL = np.array([118.81442702, 94.80935892, 103.60637387])
+
+    # IRndsm
+    # MEAN_PIXEL = np.array([118.81442702,  94.80935892,  10.85432061])
+    
+    # CIR + ndsm
+    # MEAN_PIXEL = np.array([118.81442702, 94.80935892, 103.60637387, 10.85432061])
 
     GPU_COUNT = 2
     IMAGES_PER_GPU = 2
 
-    BACKBONE = 'resnet50'
+    BACKBONE = 'resnet101'
 
     # The strides of each layer of the FPN Pyramid. These values
     # are based on a Resnet101 backbone.
@@ -355,12 +362,13 @@ def train(model):
         shear=(-4, 4)))
     ], random_order=True)
 
-    shutil.copyfile('./roof_plane_segmentation.py', './models/latest_config.py')
+    shutil.copyfile('./roof_plane_segmentation.py', './models_new/latest_config.py')
 
     ep1 = 25
     ep2 = ep1 + 15
     ep3 = ep2 + 40
     ep4 = ep3 + 40
+    ep5 = ep4 + 40
 
     print('Training heads')
     model.train(dataset_train, dataset_val,
@@ -375,19 +383,25 @@ def train(model):
                 augmentation=light_augm,
                 layers='heads')
 
-    # print('Training resnet4+')
-    # model.train(dataset_train, dataset_val,
-    #             learning_rate=0.0003,
-    #             epochs=ep3,
-    #             augmentation=light_augm,
-    #             layers='4+')
+    print('Training resnet4+')
+    model.train(dataset_train, dataset_val,
+                learning_rate=0.0003,
+                epochs=ep3,
+                augmentation=light_augm,
+                layers='4+')
 
-    # print('Training all layers')
-    # model.train(dataset_train, dataset_val,
-    #             learning_rate=0.0001,
-    #             epochs=ep4,
-    #             augmentation=light_augm,
-    #             layers='all')
+    print('Training all layers')
+    model.train(dataset_train, dataset_val,
+                learning_rate=0.0001,
+                epochs=ep4,
+                augmentation=light_augm,
+                layers='all')
+    print('Training all layers')
+    model.train(dataset_train, dataset_val,
+                learning_rate=0.0001,
+                epochs=ep5,
+                augmentation=light_augm,
+                layers='all')
 
 
 
@@ -435,12 +449,12 @@ def segment_region(model, data_path, output_path):
 #  Evaluate
 ############################################################
 
-def calculate_map(model, image_count=10):
+def calculate_map(model):
 
     dataset_val = RoofDataset()
     dataset_val.load_roof(args.dataset, 'val')
     dataset_val.prepare()
-    image_ids = np.random.choice(dataset_val.image_ids, image_count)
+    image_ids = dataset_val.image_ids
 
     # VOC-Style mAP @ IoU=0.5
     APs = []
@@ -485,6 +499,9 @@ if __name__ == '__main__':
     parser.add_argument('--subset', required=False,
                         metavar='Dataset sub-directory',
                         help='Subset of dataset to run prediction on')
+    parser.add_argument('--resultout', required=False,
+                        metavar='/path/to/outdir',
+                        help='Where to output predicted dirs')
     args = parser.parse_args()
 
 
@@ -542,8 +559,8 @@ if __name__ == '__main__':
     if args.command == 'train':
         train(model)
     elif args.command == 'predict':
-        segment_region(model, './RoofPlaneDataset/test/ostgals/512_cir/images/', './results/ostgals/512_cir/')
-        segment_region(model, './RoofPlaneDataset/test/ostgals/512_irndsm/images/', './results/ostgals/512_irndsm/')
-        pass
+        # segment_region(model, './RoofPlaneDataset2/large_test/cir/val/images/', args.resultout.lower())
+        segment_region(model, './RoofPlaneDataset/test/ostgals/cir/val/images/', './results/ostgals/cir/')
+        segment_region(model, './RoofPlaneDataset/test/ostgals/irr_ndsm/val/images/', './results/ostgals/irr_ndsm/')
     elif args.command == 'eval':
-        calculate_map(model, image_count=10)
+        calculate_map(model)
