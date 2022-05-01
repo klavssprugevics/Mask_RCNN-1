@@ -19,7 +19,7 @@ from pycocotools import mask as maskUtils
 
 ROOT_DIR = os.path.abspath(".")
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, 'pre_trained_weights/mask_rcnn_coco.h5')
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
+DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'models_new')
 sys.path.append(ROOT_DIR)
 
 
@@ -45,30 +45,40 @@ class RoofConfig(Config):
     NUM_CLASSES = 1 + 1  # background + buildings
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    IMAGE_RESIZE_MODE = 'pad64'
+    IMAGE_RESIZE_MODE = 'square'
     
     # Number of color channels per image. RGB = 3, grayscale = 1, RGB-D = 4
     # Changing this requires other changes in the code. See the WIKI for more
     # details: https://github.com/matterport/Mask_RCNN/wiki
     IMAGE_CHANNEL_COUNT = 4
 
-    IMAGESHAPE = np.array([512,512,IMAGE_CHANNEL_COUNT])
-    MEAN_PIXEL = np.array([119.98980735,  96.20931454, 104.49473794,  12.2824936])
+    IMAGESHAPE = np.array([IMAGE_MAX_DIM,IMAGE_MAX_DIM,4])
 
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
+    # CIR
+    # MEAN_PIXEL = np.array([118.81442702, 94.80935892, 103.60637387])
 
-    BACKBONE = "resnet50"
+    # IRndsm
+    # MEAN_PIXEL = np.array([118.81442702,  94.80935892,  10.85432061])
+    
+    # CIR + ndsm
+    MEAN_PIXEL = np.array([118.81442702, 94.80935892, 103.60637387, 10.85432061])
+
+    GPU_COUNT = 2
+    IMAGES_PER_GPU = 2
+
+    BACKBONE = 'resnet101'
 
     # The strides of each layer of the FPN Pyramid. These values
     # are based on a Resnet101 backbone.
-    BACKBONE_STRIDES = [2,4, 8, 16, 32]
+    BACKBONE_STRIDES = [4,8, 16, 32, 64]
+    
 
-    STEPS_PER_EPOCH = 100 // IMAGES_PER_GPU
-    VALIDATION_STEPS = 5
+    STEPS_PER_EPOCH = 200 // IMAGES_PER_GPU
+    VALIDATION_STEPS = 20
 
     # Length of square anchor side in pixels
-    RPN_ANCHOR_SCALES = (8,16,32,64,128)
+    RPN_ANCHOR_SCALES = (10, 20, 40, 80, 160)
+
 
     # Anchor stride
     # If 1 then anchors are created for each cell in the backbone feature map.
@@ -81,22 +91,23 @@ class RoofConfig(Config):
 
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more propsals.
-    RPN_NMS_THRESHOLD = 0.7
+    RPN_NMS_THRESHOLD = 0.9
 
     # How many anchors per image to use for RPN training
-    # RPN_TRAIN_ANCHORS_PER_IMAGE = 256
+    RPN_TRAIN_ANCHORS_PER_IMAGE = 256
+
 
     # If enabled, resizes instance masks to a smaller size to reduce
     # memory load. Recommended when using high-resolution images.
     USE_MINI_MASK = True
-    MINI_MASK_SHAPE = (128, 128)
+    MINI_MASK_SHAPE = (56, 56)
 
     # Number of ROIs per image to feed to classifier/mask heads
     # The Mask RCNN paper uses 512 but often the RPN doesn't generate
     # enough positive proposals to fill this and keep a positive:negative
     # ratio of 1:3. You can increase the number of proposals by adjusting
     # the RPN NMS threshold.
-    TRAIN_ROIS_PER_IMAGE = 200
+    TRAIN_ROIS_PER_IMAGE = 512
 
     # Percent of positive ROIs used to train classifier/mask heads
     ROI_POSITIVE_RATIO = .33
@@ -110,18 +121,18 @@ class RoofConfig(Config):
     MASK_SHAPE = [28, 28]
 
     # Maximum number of ground truth instances to use in one image
-    MAX_GT_INSTANCES = 200
+    MAX_GT_INSTANCES = 400
 
     # Bounding box refinement standard deviation for RPN and final detections.
     RPN_BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
     BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
 
     # Max number of final detections
-    DETECTION_MAX_INSTANCES = 200
+    DETECTION_MAX_INSTANCES = 400
 
     # Minimum probability value to accept a detected instance
     # ROIs below this threshold are skipped
-    DETECTION_MIN_CONFIDENCE = 0.0
+    DETECTION_MIN_CONFIDENCE = 0
 
     # Non-maximum suppression threshold for detection
     DETECTION_NMS_THRESHOLD = 0.5
@@ -130,42 +141,34 @@ class RoofConfig(Config):
     # The Mask RCNN paper uses lr=0.02, but on TensorFlow it causes
     # weights to explode. Likely due to differences in optimizer
     # implementation.
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.002
     LEARNING_MOMENTUM = 0.9
 
     # Weight decay regularization
-    WEIGHT_DECAY = 0.0001
+    WEIGHT_DECAY = 0.005
 
     # Loss weights for more precise optimization.
     # Can be used for R-CNN training setup.
-    # LOSS_WEIGHTS = {
-    #     "rpn_class_loss": 1.,
-    #     "rpn_bbox_loss": 1.,
-    #     "mrcnn_class_loss": 1.,
-    #     "mrcnn_bbox_loss": 1.,
-    #     "mrcnn_mask_loss": 1.
-    # }
+    LOSS_WEIGHTS = {
+         "rpn_class_loss": 1.,
+         "rpn_bbox_loss": 1,
+         "mrcnn_class_loss": 1.,
+         "mrcnn_bbox_loss": 1.,
+         "mrcnn_mask_loss": 1.
+    }
 
     # Gradient norm clipping
     GRADIENT_CLIP_NORM = 5.0
+
+
 
 
 class RoofInferenceConfig(RoofConfig):
     # Set batch size to 1 to run one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    # Don't resize imager for inferencing
-    IMAGE_RESIZE_MODE = 'pad64'
-    IMAGE_MIN_DIM = 512
-    IMAGE_MAX_DIM = 512
-    # Non-max suppression threshold to filter RPN proposals.
-    # You can increase this during training to generate more propsals.
-    RPN_NMS_THRESHOLD = 0.5
 
-    IMAGE_CHANNEL_COUNT = 4
 
-    IMAGESHAPE = np.array([512, 512, IMAGE_CHANNEL_COUNT])
-    MEAN_PIXEL = np.array([119.98980735,  96.20931454, 104.49473794,  12.2824936])
 
 
 ############################################################
@@ -303,7 +306,7 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 ############################################################
 
 def train(model):
-    """Train the model."""
+
     # Training dataset.
     dataset_train = RoofDataset()
     dataset_train.load_roof(args.dataset, 'train')
@@ -314,44 +317,79 @@ def train(model):
     dataset_val.load_roof(args.dataset, 'val')
     dataset_val.prepare()
 
-    # Augmentation
-    augmentation = iaa.SomeOf((0, 2), [
+
+    # Light augmentations
+    light_augm = iaa.SomeOf((0, 4), [
         iaa.Fliplr(0.5),
         iaa.Flipud(0.5),
         iaa.OneOf([iaa.Affine(rotate=90),
-                   iaa.Affine(rotate=180),
-                   iaa.Affine(rotate=270)]),
-        # iaa.Multiply((0.8, 1.5)),
-        # iaa.GaussianBlur(sigma=(0.0, 5.0))
+                    iaa.Affine(rotate=180),
+                    iaa.Affine(rotate=270)]),
+        iaa.Affine(
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)})
     ])
 
-    shutil.copyfile('./roof_plane_segmentation.py', './logs/latest_config.py')
+    # Medium augmentations
+    medium_augm = iaa.SomeOf((0, 4), [
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.Crop(percent=(0, 0.1)),
+        iaa.OneOf([iaa.Affine(rotate=90),
+                    iaa.Affine(rotate=180),
+                    iaa.Affine(rotate=270)]),
+        iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)})
+    ])
 
-    print("Train network heads")
+    # Heavy augmentations
+    heavy_augm = iaa.Sequential([
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.Crop(percent=(0, 0.1)),
+        iaa.Sometimes(0.5, iaa.Crop(percent=(0, 0.1))),
+        iaa.Sometimes(0.5, iaa.OneOf([iaa.Affine(rotate=90),
+                   iaa.Affine(rotate=180),
+                   iaa.Affine(rotate=270)])),
+        iaa.Sometimes(0.5, iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-45, 45),
+        shear=(-4, 4)))
+    ], random_order=True)
+
+    shutil.copyfile('./roof_plane_segmentation.py', './models_new/latest_config.py')
+
+    ep1 = 25
+    ep2 = ep1 + 15
+    ep3 = ep2 + 40
+    ep4 = ep3 + 40
+
+    print('Training heads')
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=10,
-                augmentation=augmentation,
+                learning_rate=0.002,
+                epochs=ep1,
+                augmentation=light_augm,
                 layers='heads')
 
-    # model.train(dataset_train, dataset_val,
-    #             learning_rate=config.LEARNING_RATE,
-    #             epochs=3 + 1,
-    #             augmentation=augmentation,
-    #             layers='conv1')
-
-    print("Fine tune Resnet stage 4 and up")
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs= 10 + 10,
-                augmentation=augmentation,
+                learning_rate=0.0005,
+                epochs=ep2,
+                augmentation=light_augm,
+                layers='heads')
+
+    print('Training resnet4+')
+    model.train(dataset_train, dataset_val,
+                learning_rate=0.0003,
+                epochs=ep3,
+                augmentation=light_augm,
                 layers='4+')
 
-    print("Train all layers")
+    print('Training all layers')
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=10 + 10 + 10,
-                augmentation=augmentation,
+                learning_rate=0.0001,
+                epochs=ep4,
+                augmentation=light_augm,
                 layers='all')
 
 
@@ -359,21 +397,6 @@ def train(model):
 ############################################################
 #  Predict
 ############################################################
-
-def get_ax(rows=1, cols=1, size=8):
-    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
-    return ax
-
-
-def predict_single_image(model, image_path):
-    image = io.imread(image_path)
-    results = model.detect([image], verbose=1)
-
-    r = results[0]
-    visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
-                                ['BG', 'roof'], r['scores'], ax=get_ax())
-    plt.show()
-
 
 def segment_region(model, data_path, output_path):
 
@@ -394,11 +417,16 @@ def segment_region(model, data_path, output_path):
         io.imsave(output_path + 'masks/' + os.path.splitext(file)[0] + '.tif', generated_mask)
 
         # Generate image with colored segments
-        image_arr = np.copy(original_image)
-        image_arr = image_arr[:, :, :3]
+        # image_arr = np.copy(original_image)
+
+        # Draw over CIR for better visualization
+        if output_path.endswith('/__TEST__/'):
+            image_arr = io.imread('./RoofPlaneDataset2/large_test/cir/val/images/' + Path(file).stem + '.jpg')
+        elif output_path.endswith('/__ALL__/'):
+            image_arr = io.imread('./RoofPlaneDataset2/no_overlap/all/cir/images/' + Path(file).stem + '.jpg')
         new_image = Image.fromarray(image_arr)
         
-        cmap = cm.get_cmap('winter', masks.shape[2])
+        cmap = cm.get_cmap('winter', masks.shape[0])
 
         for i in range(0, masks.shape[2]):
             image_arr[masks[:, :, i], 0] = np.clip(cmap(i)[0] + np.random.rand(1) * 255, 0, 255)
@@ -409,9 +437,41 @@ def segment_region(model, data_path, output_path):
         new_image.putalpha(255)
         mask_overlay.putalpha(128)
         new_image = Image.alpha_composite(new_image, mask_overlay)
-
         new_image.save(output_path + 'images/' + os.path.splitext(file)[0] + '.tif')
 
+
+############################################################
+#  Evaluate
+############################################################
+
+def calculate_map(model, iou):
+
+    dataset_val = RoofDataset()
+    dataset_val.load_roof(args.dataset, 'val')
+    dataset_val.prepare()
+    image_ids = dataset_val.image_ids
+
+    # VOC-Style mAP @ IoU=0.5
+    APs = []
+    for image_id in image_ids:
+        # Load image and ground truth data
+        image, image_meta, gt_class_id, gt_bbox, gt_mask =\
+            modellib.load_image_gt(dataset_val, RoofInferenceConfig,
+                                image_id, use_mini_mask=False)
+        molded_images = np.expand_dims(modellib.mold_image(image, RoofInferenceConfig), 0)
+
+        # Run object detection
+        results = model.detect([image], verbose=0)
+        r = results[0]
+
+        # Compute AP
+        AP, precisions, recalls, overlaps =\
+            utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
+                            r["rois"], r["class_ids"], r["scores"], r['masks'], iou_threshold=iou)
+        APs.append(AP)
+        
+    print("mAP: ", np.mean(APs))
+    return np.mean(APs)
     
 if __name__ == '__main__':
 
@@ -434,6 +494,9 @@ if __name__ == '__main__':
     parser.add_argument('--subset', required=False,
                         metavar='Dataset sub-directory',
                         help='Subset of dataset to run prediction on')
+    parser.add_argument('--resultout', required=False,
+                        metavar='/path/to/outdir',
+                        help='Where to output predicted dirs')
     args = parser.parse_args()
 
 
@@ -442,20 +505,15 @@ if __name__ == '__main__':
         assert args.dataset, "Argument --dataset is required for training"
 
 
-    print("Weights: ", args.weights)
-    print("Dataset: ", args.dataset)
-    print("Logs: ", args.logs)
+    print('Weights: ', args.weights)
+    print('Dataset: ', args.dataset)
+    print('Logs: ', args.logs)
 
     # Configurations
     if args.command == 'train':
         config = RoofConfig()
     else:
-        class InferenceConfig(RoofConfig):
-            # Set batch size to 1 since we'll be running inference on
-            # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-            GPU_COUNT = 1
-            IMAGES_PER_GPU = 1
-        config = InferenceConfig()
+        config = RoofInferenceConfig()
     config.display()
 
     # Create model
@@ -496,6 +554,13 @@ if __name__ == '__main__':
     if args.command == 'train':
         train(model)
     elif args.command == 'predict':
-        # predict_single_image(model, './data/1024_cir/val/images/pilseta2_br_0-0.jpg')
-        segment_region(model, './data/512_cir_ndsm/val/images/', './results/512_cir_ndsm/')
-        pass
+        segment_region(model, './RoofPlaneDataset2/large_test/cir_ndsm/val/images/', args.resultout.lower() + '/__TEST__/')
+        segment_region(model, './RoofPlaneDataset2/no_overlap/all/cir_ndsm/images/', args.resultout.lower() + '/__ALL__/')
+        # segment_region(model, './RoofPlaneDataset2/large_test/cir_ndsm/val/images/', './results/__TEST__/roof20220422T0706/cir/')
+        # segment_region(model, './RoofPlaneDataset2/no_overlap/all/cir_ndsm/images/', './results/__ALL__/roof20220422T0706/cir/')
+
+    elif args.command == 'eval':
+        print('Map: 0.5')
+        calculate_map(model, 0.5)
+        print('Map: 0.75')
+        calculate_map(model, 0.75)
