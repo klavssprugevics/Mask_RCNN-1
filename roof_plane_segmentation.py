@@ -92,8 +92,6 @@ class RoofConfig(Config):
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more propsals.
     RPN_NMS_THRESHOLD = 0.9
-    # TODO Worth tweaking
-    # RPN_NMS_THRESHOLD = 0.5
 
     # How many anchors per image to use for RPN training
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
@@ -169,10 +167,6 @@ class RoofInferenceConfig(RoofConfig):
     # Set batch size to 1 to run one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-
-    # TODO Worth tweaking - cleaner results with 0.5 thr
-    # RPN_NMS_THRESHOLD = 0.5
-
 
 
 ############################################################
@@ -449,7 +443,7 @@ def segment_region(model, data_path, output_path):
 #  Evaluate
 ############################################################
 
-def calculate_map(model):
+def calculate_map(model, iou):
 
     dataset_val = RoofDataset()
     dataset_val.load_roof(args.dataset, 'val')
@@ -472,7 +466,7 @@ def calculate_map(model):
         # Compute AP
         AP, precisions, recalls, overlaps =\
             utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
-                            r["rois"], r["class_ids"], r["scores"], r['masks'])
+                            r["rois"], r["class_ids"], r["scores"], r['masks'], iou_threshold=iou)
         APs.append(AP)
         
     print("mAP: ", np.mean(APs))
@@ -559,8 +553,13 @@ if __name__ == '__main__':
     if args.command == 'train':
         train(model)
     elif args.command == 'predict':
-        # segment_region(model, './RoofPlaneDataset2/large_test/cir/val/images/', args.resultout.lower())
-        segment_region(model, './RoofPlaneDataset/test/ostgals/cir/val/images/', './results/ostgals/cir/')
-        segment_region(model, './RoofPlaneDataset/test/ostgals/irr_ndsm/val/images/', './results/ostgals/irr_ndsm/')
+        segment_region(model, './RoofPlaneDataset2/large_test/cir/val/images/', args.resultout.lower() + '/__TEST__/')
+        segment_region(model, './RoofPlaneDataset2/no_overlap/all/cir/images/', args.resultout.lower() + '/__ALL__/')
+        # segment_region(model, './RoofPlaneDataset2/large_test/cir/val/images/', './results/__TEST__/roof20220422T0706/cir/')
+        # segment_region(model, './RoofPlaneDataset2/no_overlap/all/cir/images/', './results/__ALL__/roof20220422T0706/cir/')
+
     elif args.command == 'eval':
-        calculate_map(model)
+        print('Map: 0.5')
+        calculate_map(model, 0.5)
+        print('Map: 0.75')
+        calculate_map(model, 0.75)
